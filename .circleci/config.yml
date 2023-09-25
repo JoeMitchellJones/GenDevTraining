@@ -29,7 +29,6 @@ parameters:
 orbs:
     go: circleci/go@1.7.1
     node: circleci/node@5.0.2
-    snyk: snyk/snyk@1.4.0
     slack: circleci/slack@4.12.1
 
 commands:
@@ -516,44 +515,6 @@ jobs:
 
 
 
-    Security Scan:
-        docker:
-            - image: cimg/go:1.19.1
-        steps:
-            - checkout
-            - run:
-                name: Setup Scanning
-                command: |
-                    git config --global url."https://$GITHUB_USER:$GITHUB_TOKEN@github.com/circleci/".insteadOf "https://github.com/circleci/"
-            - when:
-                condition:
-                  or:
-                    - equal: [ main, << pipeline.git.branch >> ]
-                    - equal: [ develop, << pipeline.git.branch >> ]
-                steps:
-                    - run:
-                        name: Launching Snyk Orb Scanning
-                        command: echo "Running snyk/scan on main and develop; uploading the results"
-                    - snyk/scan:
-                        fail-on-issues: false
-                        severity-threshold: high
-                        monitor-on-build: true
-                        project: '${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}'
-            - unless:
-                condition:
-                    or:
-                      - equal: [ main, << pipeline.git.branch >> ]
-                      - equal: [ develop, << pipeline.git.branch >> ]
-                steps:
-                    - run:
-                        name: Launching Snyk Orb Scanning
-                        command: echo "Running snyk/scan on branch; not uploading the results"
-                    - snyk/scan:
-                        fail-on-issues: false
-                        severity-threshold: high
-                        monitor-on-build: false
-                        project: '${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BRANCH}'
-
     E2E Tests:
       docker:
         - image: cimg/node:16.18.1
@@ -583,11 +544,6 @@ workflows:
             - Lint:
                 filters:
                     <<: *ignore-release-tag
-            - Security Scan:
-                filters:
-                    <<: *ignore-release-tag
-                context:
-                    - org-global-employees
             - Build Linux:
                 filters:
                     <<: *ignore-release-tag
@@ -650,11 +606,6 @@ workflows:
                         only: /^\d+\.\d+\.\d+/
                     branches:
                         ignore: /.*/
-            - Security Scan:
-                filters:
-                    <<: *release-tag-only
-                context:
-                    - org-global-employees
             - Build Linux:
                 filters:
                     <<: *release-tag-only
@@ -681,8 +632,7 @@ workflows:
                     - Build MacOS
                     - Build Windows
                     - E2E Tests
-                    - Security Scan
-
+                    
             - Github Release:
                 name: Github Release
                 base-branch: main
